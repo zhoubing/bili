@@ -35,9 +35,9 @@ public class IndexController {
     }
 
 	@RequestMapping(value = "/detail", method = RequestMethod.GET)
-	public List<String> detail() {
+	public VideoClipDTO detail() {
 		INeedAV iNeedAV = new INeedAV();
-		String avId = iNeedAV.getValidID("https://www.bilibili.com/video/BV1HY411H7V5/?p=4");
+		String avId = iNeedAV.getValidID("https://www.bilibili.com/video/BV1Ce411c7w7/?spm_id_from=333.999.top_right_bar_window_default_collection.content.click");
 		assert(!(iNeedAV.getInputParser(avId).selectParser(avId) instanceof AbstractPageQueryParser));
 		VideoInfo avInfo = iNeedAV.getVideoDetail(avId, Global.downloadFormat, false);
 		System.out.println(avInfo);
@@ -54,9 +54,11 @@ public class IndexController {
 				}
 			}
 		}
-
-//		return avInfo.getVideoName();
-		return qnList;
+		VideoClipDTO videoClipDTO = new VideoClipDTO();
+		videoClipDTO.setImageUrl(avInfo.getVideoPreview());
+		videoClipDTO.setBrief(avInfo.getBrief());
+		videoClipDTO.setVideoName(avInfo.getVideoName());
+		return videoClipDTO;
 	}
 
     public HashMap<String, String> genLoginHeader(){
