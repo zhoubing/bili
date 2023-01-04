@@ -9,6 +9,7 @@ import nicelee.bilibili.util.HttpHeaders;
 import nicelee.bilibili.util.ResourcesUtil;
 import nicelee.ui.Global;
 import nicelee.ui.item.ClipInfoPanel;
+import nicelee.ui.thread.DownloadRunnable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -37,7 +38,8 @@ public class IndexController {
 	@RequestMapping(value = "/detail", method = RequestMethod.GET)
 	public VideoClipDTO detail() {
 		INeedAV iNeedAV = new INeedAV();
-		String avId = iNeedAV.getValidID("https://www.bilibili.com/video/BV1Ce411c7w7/?spm_id_from=333.999.top_right_bar_window_default_collection.content.click");
+//		String avId = iNeedAV.getValidID("https://www.bilibili.com/video/BV1Ce411c7w7/?spm_id_from=333.999.top_right_bar_window_default_collection.content.click");
+		String avId = iNeedAV.getValidID("https://www.bilibili.com/video/BV1hV4y1c74T/?spm_id_from=333.999.0.0&vd_source=51b0fedb987055bc000c8fbbc2021d5f");
 		assert(!(iNeedAV.getInputParser(avId).selectParser(avId) instanceof AbstractPageQueryParser));
 		VideoInfo avInfo = iNeedAV.getVideoDetail(avId, Global.downloadFormat, false);
 		System.out.println(avInfo);
@@ -45,6 +47,8 @@ public class IndexController {
 
 		for(ClipInfo cInfo:  avInfo.getClips().values()) {
 			for (final int qn : cInfo.getLinks().keySet()) {
+				System.out.println("qnName: " + qn);
+
 				// JButton btn = new JButton("清晰度: " + qn);
 				String qnName = VideoQualityEnum.getQualityDescript(qn);
 				if (qnName != null) {
@@ -58,6 +62,11 @@ public class IndexController {
 		videoClipDTO.setImageUrl(avInfo.getVideoPreview());
 		videoClipDTO.setBrief(avInfo.getBrief());
 		videoClipDTO.setVideoName(avInfo.getVideoName());
+		videoClipDTO.setQualityList(qnList);
+
+		ClipInfo clip = (ClipInfo) avInfo.getClips().values().toArray()[0];
+		DownloadRunnable downThread = new DownloadRunnable(avInfo, clip, 80);
+		Global.queryThreadPool.execute(downThread);
 		return videoClipDTO;
 	}
 
