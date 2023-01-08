@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.zxing.client.j2se.MatrixToImageWriter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -266,11 +267,12 @@ public abstract class AbstractBaseParser implements IInputParser {
 		String url = "https://api.bilibili.com/x/web-interface/view/detail?aid=&jsonp=jsonp&callback=__jp0&bvid="
 				+ bvId;
 		HashMap<String, String> header = headers.getBiliJsonAPIHeaders(bvId);
+		System.out.println(header);
 		String callBack = util.getContent(url, header);
 		JSONObject infoObj = new JSONObject(callBack.substring(6, callBack.length() - 2)).getJSONObject("data")
 				.getJSONObject("View");
 		Long aid = infoObj.optLong("aid");
-
+		System.out.println(infoObj);
 		if (infoObj.optString("redirect_url").isEmpty()) {
 			// 普通类型
 			url = downloadFormat == 2 ? 
