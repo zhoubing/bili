@@ -20,22 +20,11 @@ import nicelee.ui.DialogSMSLogin;
 import nicelee.ui.Global;
 import nicelee.ui.thread.DownloadRunnable;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.EntityUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,14 +32,16 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpCookie;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
 
 @RestController
@@ -58,13 +49,14 @@ import java.util.List;
 public class IndexController {
     RestTemplate restTemplate = new RestTemplate();
     private static Logger logger = LoggerFactory.getLogger(IndexController.class);
-    private static final String YOUDAO_URL = "https://openapi.youdao.com/api";
-
-    private static final String APP_KEY = "7ae29ee68b869af8";
-
-    private static final String APP_SECRET = "BfhXtWH8EkNYEDyyWSQimHnO04VjcmOH";
 
     {
+        // 读取配置文件
+        ConfigUtil.initConfigs();
+
+        if (Global.saveToRepo) {
+            RepoUtil.init(false);
+        }
         // 初始化 - 登录
         INeedLogin inl = new INeedLogin();
         if (inl.readCookies() != null) {
@@ -98,6 +90,21 @@ public class IndexController {
             e.printStackTrace();
         }
         return "";
+    }
+
+    @RequestMapping(value = "/download", method = RequestMethod.GET)
+    public String download() {
+        try {
+            int qn = VideoQualityEnum.getQN("720P");
+            ClipInfo clip = (ClipInfo) avInfo.getClips().values().toArray()[0];
+            DownloadRunnable downThread = new DownloadRunnable(avInfo, clip, qn);
+            // new Thread(downThread).start();
+            Global.queryThreadPool.execute(downThread);
+            return "success";
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "failed";
+        }
     }
 
     @RequestMapping(value = "/qrcode", method = RequestMethod.GET)
@@ -256,151 +263,6 @@ public class IndexController {
         }
     }
 
-    @RequestMapping(value = "/translate", method = RequestMethod.POST)
-    public String getTranslate(@RequestBody String param) {
-        System.out.println("param: " + param);
-        String[] strings = param.split("&");
-
-        Map<String, String> params = new HashMap<>();
-        String q = strings[0].split("=")[1].replaceAll("\"", "");
-        String salt = String.valueOf(System.currentTimeMillis());
-        params.put("from", strings[1].split("=")[1].replaceAll("\"", ""));
-        params.put("to", strings[2].split("=")[1].replaceAll("\"", ""));
-        params.put("signType", "v3");
-        String curtime = String.valueOf(System.currentTimeMillis() / 1000);
-        params.put("curtime", curtime);
-        String signStr = APP_KEY + truncate(q) + salt + curtime + APP_SECRET;
-        String sign = getDigest(signStr);
-        params.put("appKey", APP_KEY);
-        params.put("q", q);
-        params.put("salt", salt);
-        params.put("sign", sign);
-        params.put("vocabId", "您的用户词表ID");
-        /** 处理结果 */
-        return requestForHttp(YOUDAO_URL, params);
-    }
-
-    public static String requestForHttp(String url, Map<String, String> params) {
-
-        /** 创建HttpClient */
-        CloseableHttpClient httpClient = HttpClients.createDefault();
-
-        /** httpPost */
-        HttpPost httpPost = new HttpPost(url);
-        List<NameValuePair> paramsList = new ArrayList<>();
-        Iterator<Map.Entry<String, String>> it = params.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<String, String> en = it.next();
-            String key = en.getKey();
-            String value = en.getValue();
-            paramsList.add(new BasicNameValuePair(key, value));
-        }
-        CloseableHttpResponse httpResponse = null;
-        try {
-            httpPost.setEntity(new UrlEncodedFormEntity(paramsList, "UTF-8"));
-            httpResponse = httpClient.execute(httpPost);
-            Header[] contentType = httpResponse.getHeaders("Content-Type");
-            logger.info("Content-Type:" + contentType[0].getValue());
-            if ("audio/mp3".equals(contentType[0].getValue())) {
-                //如果响应是wav
-                HttpEntity httpEntity = httpResponse.getEntity();
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                httpResponse.getEntity().writeTo(baos);
-                byte[] result = baos.toByteArray();
-                EntityUtils.consume(httpEntity);
-                if (result != null) {//合成成功
-                    String file = "合成的音频存储路径" + System.currentTimeMillis() + ".mp3";
-                    byte2File(result, file);
-                }
-                return "";
-            } else {
-                /** 响应不是音频流，直接显示结果 */
-                HttpEntity httpEntity = httpResponse.getEntity();
-                String json = EntityUtils.toString(httpEntity, "UTF-8");
-                EntityUtils.consume(httpEntity);
-                logger.info(json);
-                System.out.println(json);
-                JSONObject jsonObject = new JSONObject(json);
-                JSONObject newJsonObject = new JSONObject();
-                newJsonObject.put("translation", jsonObject.getJSONArray("translation").getString(0));
-                if (jsonObject.has("basic")) {
-                    newJsonObject.put("explains", jsonObject.getJSONObject("basic").getJSONArray("explains").getString(0));
-                }
-                return newJsonObject.toString();
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } finally {
-            try {
-                if (httpResponse != null) {
-                    httpResponse.close();
-                }
-            } catch (IOException e) {
-                logger.info("## release resouce error ##" + e);
-            }
-        }
-    }
-
-    /**
-     * 生成加密字段
-     */
-    public static String getDigest(String string) {
-        if (string == null) {
-            return null;
-        }
-        char hexDigits[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
-        byte[] btInput = string.getBytes(StandardCharsets.UTF_8);
-        try {
-            MessageDigest mdInst = MessageDigest.getInstance("SHA-256");
-            mdInst.update(btInput);
-            byte[] md = mdInst.digest();
-            int j = md.length;
-            char str[] = new char[j * 2];
-            int k = 0;
-            for (byte byte0 : md) {
-                str[k++] = hexDigits[byte0 >>> 4 & 0xf];
-                str[k++] = hexDigits[byte0 & 0xf];
-            }
-            return new String(str);
-        } catch (NoSuchAlgorithmException e) {
-            return null;
-        }
-    }
-
-    /**
-     * @param result 音频字节流
-     * @param file   存储路径
-     */
-    private static void byte2File(byte[] result, String file) {
-        File audioFile = new File(file);
-        FileOutputStream fos = null;
-        try {
-            fos = new FileOutputStream(audioFile);
-            fos.write(result);
-
-        } catch (Exception e) {
-            logger.info(e.toString());
-        } finally {
-            if (fos != null) {
-                try {
-                    fos.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-    }
-
-    public static String truncate(String q) {
-        if (q == null) {
-            return null;
-        }
-        int len = q.length();
-        String result;
-        return len <= 20 ? q : (q.substring(0, 10) + len + q.substring(len - 10, len));
-    }
-
     @RequestMapping(value = "/login", method = RequestMethod.GET)
     public String login() {
         //参数
@@ -409,14 +271,15 @@ public class IndexController {
 
         return result.getBody().getData().getQrcode_key();
     }
+    private VideoInfo avInfo;
 
     @RequestMapping(value = "/detail", method = RequestMethod.GET)
     public VideoClipDTO detail() {
         INeedAV iNeedAV = new INeedAV();
 //		String avId = iNeedAV.getValidID("https://www.bilibili.com/video/BV1Ce411c7w7/?spm_id_from=333.999.top_right_bar_window_default_collection.content.click");
-        String avId = iNeedAV.getValidID("https://www.bilibili.com/video/BV1MG4y1L7yy/?spm_id_from=333.999.0.0");
+        String avId = iNeedAV.getValidID("https://www.bili1bili.com/video/BV1MG4y1L7yy/?spm_id_from=333.999.0.0");
         assert (!(iNeedAV.getInputParser(avId).selectParser(avId) instanceof AbstractPageQueryParser));
-        VideoInfo avInfo = iNeedAV.getVideoDetail(avId, Global.downloadFormat, false);
+        avInfo = iNeedAV.getVideoDetail(avId, Global.downloadFormat, false);
         System.out.println(avInfo);
         List<String> qnList = new ArrayList<>();
 

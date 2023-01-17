@@ -220,8 +220,8 @@ public class Global {
 				break;
 			}
 		}
-		if (Global.backgroundImg == null)
-			Global.backgroundImg = new ImageIcon(Global.class.getResource("/resources/background.png"));
+//		if (Global.backgroundImg == null)
+//			Global.backgroundImg = new ImageIcon(Global.class.getResource("/resources/background.png"));
 		if(proxyHost != null && proxyPort != null) {
 			System.setProperty("proxyHost", proxyHost);
 			System.setProperty("proxyPort", proxyPort);

@@ -1,12 +1,6 @@
 package nicelee.bilibili.util;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map.Entry;
@@ -54,7 +48,8 @@ public class ConfigUtil {
 	public static void initConfigs() {
 		// 先初始化默认值
 		try (BufferedReader buReader = new BufferedReader(
-				new InputStreamReader(ConfigUtil.class.getResourceAsStream("/resources/app.config")))) {
+//				new InputStreamReader(ConfigUtil.class.getResourceAsStream("/resources/app.config")))) {
+				new InputStreamReader(new FileInputStream("./config/app.config")))) {
 			String config = buReader.readLine();
 			while (config != null) {
 				Matcher matcher = patternConfig.matcher(config);

@@ -105,9 +105,9 @@ public class DownloadRunnable implements Runnable {
 		// 将下载任务(HttpRequestUtil + DownloadInfoPanel)添加至全局列表, 让监控进程周期获取信息并刷新
 		Global.downloadTaskList.put(downPanel, iNeedAV.getDownloader());
 		// 根据信息初始化绘制下载部件
-		JPanel jpContent = Global.downloadTab.getJpContent();
-		jpContent.add(downPanel);
-		jpContent.setPreferredSize(new Dimension(1100, 128 * Global.downloadTaskList.size()));
+//		JPanel jpContent = Global.downloadTab.getJpContent();
+//		jpContent.add(downPanel);
+//		jpContent.setPreferredSize(new Dimension(1100, 128 * Global.downloadTaskList.size()));
 		Global.downLoadThreadPool.execute(new Runnable() {
 			@Override
 			public void run() {
