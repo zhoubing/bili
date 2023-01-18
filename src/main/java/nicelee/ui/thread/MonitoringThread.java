@@ -22,8 +22,8 @@ public class MonitoringThread extends Thread {
 		Color lightRed = new Color(255, 71, 10);
 		Color lightPink = new Color(255, 122, 122);
 		Color lightOrange = new Color(255, 207, 61);
-		if(Global.playSoundAfterMissionComplete)
-			Audio.init();
+//		if (Global.playSoundAfterMissionComplete)
+//			Audio.init();
 		int lastActiveTaskCount = 0;
 		while (true) {
 			int MAX_FAIL_CNT = Global.maxFailRetry;

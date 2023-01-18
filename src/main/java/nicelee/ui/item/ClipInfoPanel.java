@@ -73,8 +73,13 @@ public class ClipInfoPanel extends JPanel implements MouseListener {
 			btnDanmuku.addActionListener(new ActionListener() {
 				@Override
 				public void actionPerformed(ActionEvent e) {
-					DownloadRunnable downThread = new DownloadRunnable(video, clip, 801);
-					Global.queryThreadPool.execute(downThread);
+					try {
+						DownloadRunnable downThread = new DownloadRunnable(video, clip, 801);
+						Global.queryThreadPool.execute(downThread);
+					} catch (Exception ex) {
+						JOptionPaneManager.showMsgWithNewThread("提示", ex.getMessage());
+						ex.printStackTrace();
+					}
 				}
 			});
 			this.add(btnDanmuku);
@@ -107,9 +112,14 @@ public class ClipInfoPanel extends JPanel implements MouseListener {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				DownloadRunnable downThread = new DownloadRunnable(video, clip, qn);
-				// new Thread(downThread).start();
-				Global.queryThreadPool.execute(downThread);
+				try {
+					DownloadRunnable downThread = new DownloadRunnable(video, clip, qn);
+					// new Thread(downThread).start();
+					Global.queryThreadPool.execute(downThread);
+				} catch (Exception ex) {
+					JOptionPaneManager.showMsgWithNewThread("提示", ex.getMessage());
+					ex.printStackTrace();
+				}
 			}
 		});
 		this.add(btn);

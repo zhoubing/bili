@@ -25,6 +25,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
@@ -90,21 +91,6 @@ public class IndexController {
             e.printStackTrace();
         }
         return "";
-    }
-
-    @RequestMapping(value = "/download", method = RequestMethod.GET)
-    public String download() {
-        try {
-            int qn = VideoQualityEnum.getQN("720P");
-            ClipInfo clip = (ClipInfo) avInfo.getClips().values().toArray()[0];
-            DownloadRunnable downThread = new DownloadRunnable(avInfo, clip, qn);
-            // new Thread(downThread).start();
-            Global.queryThreadPool.execute(downThread);
-            return "success";
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "failed";
-        }
     }
 
     @RequestMapping(value = "/qrcode", method = RequestMethod.GET)
@@ -273,12 +259,23 @@ public class IndexController {
     }
     private VideoInfo avInfo;
 
-    @RequestMapping(value = "/detail", method = RequestMethod.GET)
-    public VideoClipDTO detail() {
+    @RequestMapping(value = "/download", method = RequestMethod.POST)
+    public Result<?> download(@RequestBody String param) {
+        JSONObject jsonObject = new JSONObject(param);
+        String url = jsonObject.getString("url");
         INeedAV iNeedAV = new INeedAV();
-//		String avId = iNeedAV.getValidID("https://www.bilibili.com/video/BV1Ce411c7w7/?spm_id_from=333.999.top_right_bar_window_default_collection.content.click");
-        String avId = iNeedAV.getValidID("https://www.bili1bili.com/video/BV1MG4y1L7yy/?spm_id_from=333.999.0.0");
-        assert (!(iNeedAV.getInputParser(avId).selectParser(avId) instanceof AbstractPageQueryParser));
+        String avId = iNeedAV.getValidID(url);
+        if (iNeedAV.getInputParser(avId).selectParser(avId) instanceof AbstractPageQueryParser) {
+            Result<String> data = new Result<>();
+            data.setCode(-2);
+            return data;
+        }
+        if (Global.isLogin || !Global.needToLogin) {
+            Result<String> data = new Result<>();
+            data.setCode(-1);
+            return data;
+        }
+//        assert (!(iNeedAV.getInputParser(avId).selectParser(avId) instanceof AbstractPageQueryParser));
         avInfo = iNeedAV.getVideoDetail(avId, Global.downloadFormat, false);
         System.out.println(avInfo);
         List<String> qnList = new ArrayList<>();
@@ -303,9 +300,18 @@ public class IndexController {
         videoClipDTO.setQualityList(qnList);
 
         ClipInfo clip = (ClipInfo) avInfo.getClips().values().toArray()[0];
-        DownloadRunnable downThread = new DownloadRunnable(avInfo, clip, 80);
-        Global.queryThreadPool.execute(downThread);
-        return videoClipDTO;
+        try {
+            DownloadRunnable downThread = new DownloadRunnable(avInfo, clip, 80);
+            Global.queryThreadPool.execute(downThread);
+        } catch (Exception e) {
+            Result<String> data = new Result<>();
+            data.setCode(-2);
+            data.setMsg(e.getMessage());
+            return data;
+        }
+        Result<String> data = new Result<>();
+        data.setCode(0);
+        return data;
     }
 
     public HashMap<String, String> genLoginHeader() {
